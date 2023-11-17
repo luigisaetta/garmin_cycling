@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 
 DEBUG = False
+
+
 #
 # conversion functions
 #
@@ -20,6 +22,7 @@ def convert_to_kmh(speed_list):
 
     return kmh_speed_list
 
+
 # semicircles is a format used by Garmin in fit files
 def semicircles_to_degrees(semicircles):
     try:
@@ -29,6 +32,7 @@ def semicircles_to_degrees(semicircles):
         deg = None
 
     return deg
+
 
 # from gpt4
 # plus (LS) adjustment to handle NaN values
@@ -41,12 +45,15 @@ def compute_normalized_power(power_data):
     # Adjust the window size if your data is recorded at a different frequency
     # (LS) It is ok, checked ts
     # (LS) modified to hanfle nan
-    rolling_avg = pd.Series(fourth_power).rolling(window=30, min_periods=1, center=True).mean()
+    rolling_avg = (
+        pd.Series(fourth_power).rolling(window=30, min_periods=1, center=True).mean()
+    )
 
     # Take the fourth root of the average of these values
-    normalized_power = np.power(rolling_avg, 1/4)
-    
+    normalized_power = np.power(rolling_avg, 1 / 4)
+
     return np.round(normalized_power, 1)
+
 
 #
 # read a fit file and store main infos in a Pandas DataFrame
@@ -69,20 +76,21 @@ def load_in_pandas(f_path_name):
     temp_list = []
 
     # loop over all the records
-    for i, record in enumerate(fitfile.get_messages('record')):
-    
-        rec_num_list.append(i+1)
+    for i, record in enumerate(fitfile.get_messages("record")):
+        rec_num_list.append(i + 1)
 
         if DEBUG:
-            if i < 10:
+            if i < 3:
                 print(f"Record num. {i}...")
 
         # extract record data
         for data in record:
             if DEBUG:
-                if i < 10:
+                if i < 3:
                     print(f"--- {data.name}, {data.value}")
-        
+
+            # TODO: this part of code could be done in a more elegant way?
+            # clue: could we use a dictionary?
             if data.name == "timestamp":
                 ts_list.append(data.value)
             if data.name == "position_lat":
@@ -101,7 +109,7 @@ def load_in_pandas(f_path_name):
                 heart_rate_list.append(data.value)
             if data.name == "temperature":
                 temp_list.append(data.value)
- 
+
     #
     # prepare the dataframe
     #
@@ -127,5 +135,3 @@ def load_in_pandas(f_path_name):
     df = pd.DataFrame(dict_values)
 
     return df
-
-
