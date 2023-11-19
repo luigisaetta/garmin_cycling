@@ -183,7 +183,7 @@ def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False
 
 # for plotting
 def plot_vs_altitude(df, col_name, smooth=False):
-    # if smooth make a 60 window rolling avg
+    # if smooth make a 60 sec. window rolling avg
 
     y = df[col_name].values
     if smooth:
