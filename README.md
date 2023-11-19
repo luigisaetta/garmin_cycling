@@ -7,9 +7,14 @@ To create the environment
 ```
 conda create -n garmin python=3.9
 ```
-
+```
+conda activate garmin
+```
 clone the git repo
-
+```
+git clone https://github.com/luigisaetta/garmin_cycling.git
+```
+cd garmin_cycling
 ```
 pip install -f requirements.txt
 ```
