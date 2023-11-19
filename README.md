@@ -5,7 +5,7 @@ In this repository you will find a set of utilities to read Germin's files in fi
 To create the environment
 
 ```
-conda create -n myenv python=3.8
+conda create -n garmin python=3.9
 ```
 
 clone the git repo
