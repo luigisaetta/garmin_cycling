@@ -5,8 +5,9 @@
 from fitparse import FitFile
 import pandas as pd
 import numpy as np
+import math
 
-DEBUG = False
+import matplotlib.pyplot as plt
 
 
 #
@@ -54,84 +55,145 @@ def compute_normalized_power(power_data):
 
     return np.round(normalized_power, 1)
 
+def haversine(lat1, lon1, lat2, lon2):
+    # Convert latitude and longitude from degrees to radians
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+
+    # Radius of earth in meters
+    r = 6371 * 1000
+
+    # result in meters
+    return c * r
+
+def compute_total_distance(lat_vet, long_vet):
+    tot_dist = 0
+    
+    for i in range(1, len(lat_vet)):
+        p1_lat = lat_vet[i - 1]
+        p1_long = long_vet[i - 1]
+        p2_lat = lat_vet[i]
+        p2_long = long_vet[i]
+
+        dist = haversine(p1_lat, p1_long, p2_lat, p2_long)
+        tot_dist += dist
+
+    return round(tot_dist, 3)
 
 #
 # read a fit file and store main infos in a Pandas DataFrame
 #
-def load_in_pandas(f_path_name):
+def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False):
+    # power and cadence added to enable loading of data when power and cadence are NOT
+    # available
+
+    # read the binary file
     fitfile = FitFile(f_path_name)
 
-    # the lists used to build the dataframe
-    rec_num_list = []
-    # timestamp
-    ts_list = []
-    lat_list = []
-    long_list = []
-    altitude_list = []
-    speed_list = []
-    power_list = []
-    n_power_list = []
-    cadence_list = []
-    heart_rate_list = []
-    temp_list = []
+    # the lists used to build the Pandas dataframe
 
+    # list of data.name to consider
+    # some id, n_power) are added..
+    cols_list = ['id',
+                 'timestamp',
+                 'position_lat',
+                 'position_long',
+                 'altitude',
+                 'temperature',
+                 'speed',
+                 'distance',
+                 'heart_rate'
+                ]
+
+    # add cadence and power if available in the measurements
+    if cadence:
+        cols_list.append('cadence')
+    if power:
+        cols_list.append('power')
+        cols_list.append('n_power')
+                         
+    # initialize the dictionary
+    dict_values = {}
+    
+    for key in cols_list:
+        dict_values[key] = []
+    
     # loop over all the records
     for i, record in enumerate(fitfile.get_messages("record")):
-        rec_num_list.append(i + 1)
-
-        if DEBUG:
+        if debug:
+            # only 3 records displayed
             if i < 3:
                 print(f"Record num. {i}...")
 
         # extract record data
+        
+        # to complete for the dataframe creation, to handle missing columns
+        found_cols = []
+        
         for data in record:
-            if DEBUG:
+            if debug:
                 if i < 3:
                     print(f"--- {data.name}, {data.value}")
 
-            # TODO: this part of code could be done in a more elegant way?
-            # clue: could we use a dictionary?
-            if data.name == "timestamp":
-                ts_list.append(data.value)
-            if data.name == "position_lat":
-                lat_list.append(semicircles_to_degrees(data.value))
-            if data.name == "position_long":
-                long_list.append(semicircles_to_degrees(data.value))
-            if data.name == "altitude":
-                altitude_list.append(data.value)
-            if data.name == "speed":
-                speed_list.append(data.value)
-            if data.name == "cadence":
-                cadence_list.append(data.value)
-            if data.name == "power":
-                power_list.append(data.value)
-            if data.name == "heart_rate":
-                heart_rate_list.append(data.value)
-            if data.name == "temperature":
-                temp_list.append(data.value)
+            # more elegant
+            if data.name in dict_values.keys():
+                value = data.value
+                found_cols.append(data.name)
+                
+                if data.name in ['position_lat','position_long']:
+                    # conversion
+                    value = semicircles_to_degrees(value)
+                
+                dict_values[data.name].append(value)
+        
+        # handle missing cols
+        missing_cols = list(set(cols_list) - set(found_cols))
 
+        for col in missing_cols:
+            dict_values[col].append(np.nan)
+            
+    # now i + 2 is the # of records
+    dict_values['id'] = range(1, i + 2)
+    
     #
     # prepare the dataframe
     #
 
     # conversion
-    speed_list = convert_to_kmh(speed_list)
-    n_power_list = compute_normalized_power(power_list)
+    dict_values['speed'] = convert_to_kmh(dict_values['speed'])
+    
+    # compute n_power
+    if power:
+        dict_values['n_power'] = compute_normalized_power(dict_values['power'])
 
-    dict_values = {
-        "id": rec_num_list,
-        "timestamp": ts_list,
-        "lat": lat_list,
-        "long": long_list,
-        "altitude": altitude_list,
-        "temperature": temp_list,
-        "speed": speed_list,
-        "cadence": cadence_list,
-        "power": power_list,
-        "n_power": n_power_list,
-        "heart_rate": heart_rate_list,
-    }
-
+    if debug:
+        print("")
+        print("Num. of elements in lists...")
+        for key in dict_values.keys():
+            print(key, len(dict_values[key]))
+              
     df = pd.DataFrame(dict_values)
 
     return df
+
+# for plotting
+def plot_vs_altitude(df, col_name, smooth=False):
+    # if smooth make a 60 window rolling avg
+
+    y = df[col_name].values
+    if smooth:
+        rolling_avg = df[col_name].rolling(window=60, min_periods=1, center=True).mean()
+        y = rolling_avg
+    
+    plt.plot(df['id'].values, y, label=col_name)
+    plt.plot(df['id'].values, df['altitude'].values, label='altitude')
+    plt.title(col_name + ' vs altitude')
+    plt.xlabel("point #")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
