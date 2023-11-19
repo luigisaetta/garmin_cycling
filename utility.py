@@ -55,6 +55,7 @@ def compute_normalized_power(power_data):
 
     return np.round(normalized_power, 1)
 
+
 def haversine(lat1, lon1, lat2, lon2):
     # Convert latitude and longitude from degrees to radians
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
@@ -62,7 +63,10 @@ def haversine(lat1, lon1, lat2, lon2):
     # Haversine formula
     dlat = lat2 - lat1
     dlon = lon2 - lon1
-    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    )
     c = 2 * math.asin(math.sqrt(a))
 
     # Radius of earth in meters
@@ -71,19 +75,37 @@ def haversine(lat1, lon1, lat2, lon2):
     # result in meters
     return c * r
 
-def compute_total_distance(lat_vet, long_vet):
-    tot_dist = 0
-    
-    for i in range(1, len(lat_vet)):
-        p1_lat = lat_vet[i - 1]
-        p1_long = long_vet[i - 1]
-        p2_lat = lat_vet[i]
-        p2_long = long_vet[i]
 
-        dist = haversine(p1_lat, p1_long, p2_lat, p2_long)
-        tot_dist += dist
+def compute_total_distance(df):
+    if df['distance'].max() is not np.nan:
+        tot_dist = df['distance'].max()
+    else:
+        # else compute from lat, long
+        tot_dist = 0
+
+        lat_vet = df['position_lat'].values
+        long_vet = df['position_long'].values
+    
+        for i in range(1, len(lat_vet)):
+            p1_lat = lat_vet[i - 1]
+            p1_long = long_vet[i - 1]
+            p2_lat = lat_vet[i]
+            p2_long = long_vet[i]
+
+            dist = haversine(p1_lat, p1_long, p2_lat, p2_long)
+            tot_dist += dist
 
     return round(tot_dist, 3)
+
+
+def compute_energy_consumed(df, col_name, eff_factor=0.25):
+    # we're assuming time between points is 1 sec.
+    tot_energy_joule = np.sum(df[col_name].values)
+
+    tot_energy_cal = tot_energy_joule * 0.000239006 * (1./eff_factor)
+
+    return round(tot_energy_cal, 1)
+
 
 #
 # read a fit file and store main infos in a Pandas DataFrame
@@ -99,30 +121,31 @@ def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False
 
     # list of data.name to consider
     # some id, n_power) are added..
-    cols_list = ['id',
-                 'timestamp',
-                 'position_lat',
-                 'position_long',
-                 'altitude',
-                 'temperature',
-                 'speed',
-                 'distance',
-                 'heart_rate'
-                ]
+    cols_list = [
+        "id",
+        "timestamp",
+        "position_lat",
+        "position_long",
+        "altitude",
+        "temperature",
+        "speed",
+        "distance",
+        "heart_rate",
+    ]
 
     # add cadence and power if available in the measurements
     if cadence:
-        cols_list.append('cadence')
+        cols_list.append("cadence")
     if power:
-        cols_list.append('power')
-        cols_list.append('n_power')
-                         
+        cols_list.append("power")
+        cols_list.append("n_power")
+
     # initialize the dictionary
     dict_values = {}
-    
+
     for key in cols_list:
         dict_values[key] = []
-    
+
     # loop over all the records
     for i, record in enumerate(fitfile.get_messages("record")):
         if debug:
@@ -131,10 +154,10 @@ def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False
                 print(f"Record num. {i}...")
 
         # extract record data
-        
+
         # to complete for the dataframe creation, to handle missing columns
         found_cols = []
-        
+
         for data in record:
             if debug:
                 if i < 3:
@@ -144,42 +167,43 @@ def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False
             if data.name in dict_values.keys():
                 value = data.value
                 found_cols.append(data.name)
-                
-                if data.name in ['position_lat','position_long']:
+
+                if data.name in ["position_lat", "position_long"]:
                     # conversion
                     value = semicircles_to_degrees(value)
-                
+
                 dict_values[data.name].append(value)
-        
+
         # handle missing cols
         missing_cols = list(set(cols_list) - set(found_cols))
 
         for col in missing_cols:
             dict_values[col].append(np.nan)
-            
+
     # now i + 2 is the # of records
-    dict_values['id'] = range(1, i + 2)
-    
+    dict_values["id"] = range(1, i + 2)
+
     #
     # prepare the dataframe
     #
 
     # conversion
-    dict_values['speed'] = convert_to_kmh(dict_values['speed'])
-    
+    dict_values["speed"] = convert_to_kmh(dict_values["speed"])
+
     # compute n_power
     if power:
-        dict_values['n_power'] = compute_normalized_power(dict_values['power'])
+        dict_values["n_power"] = compute_normalized_power(dict_values["power"])
 
     if debug:
         print("")
         print("Num. of elements in lists...")
         for key in dict_values.keys():
             print(key, len(dict_values[key]))
-              
+
     df = pd.DataFrame(dict_values)
 
     return df
+
 
 # for plotting
 def plot_vs_altitude(df, col_name, smooth=False):
@@ -189,10 +213,10 @@ def plot_vs_altitude(df, col_name, smooth=False):
     if smooth:
         rolling_avg = df[col_name].rolling(window=60, min_periods=1, center=True).mean()
         y = rolling_avg
-    
-    plt.plot(df['id'].values, y, label=col_name)
-    plt.plot(df['id'].values, df['altitude'].values, label='altitude')
-    plt.title(col_name + ' vs altitude')
+
+    plt.plot(df["id"].values, y, label=col_name)
+    plt.plot(df["id"].values, df["altitude"].values, label="altitude")
+    plt.title(col_name + " vs altitude")
     plt.xlabel("point #")
     plt.legend()
     plt.grid(True)
