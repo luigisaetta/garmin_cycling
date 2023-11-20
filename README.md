@@ -1,11 +1,11 @@
 # Garmin Cycling and Running
-In this repository you will find a set of utilities to read Garmin's files in fit format and to analyze those files.
+In this repository, you will discover a collection of tools designed for reading and analyzing **Garmin** files in the **FIT** or **TCX** format.
 
 ## How to use
-In the [EDA](./eda.ipynb) you'll find examples on how-to load a fit file, analyze it and display points on a map.
+In the [EDA](./eda_fit.ipynb) you'll find examples on how-to load a FIT file, analyze it and display points on a map.
  
 ## Conda Environment
-To create the environment
+To create Python environment, with all required libraries:
 
 ```
 conda create -n garmin python=3.9
@@ -21,3 +21,5 @@ cd garmin_cycling
 ```
 pip install -f requirements.txt
 ```
+## Examples
+![InteractiveMap](./images/img1.jpg)
