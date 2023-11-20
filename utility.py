@@ -2,7 +2,12 @@
 # Utilities for parsing fit files and doing conversions
 # Author: Luigi Saetta
 #
+
+# for fit format
 from fitparse import FitFile
+# for TCX format
+import xml.etree.ElementTree as ET
+
 import pandas as pd
 import numpy as np
 import math
@@ -202,6 +207,99 @@ def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False
 
     df = pd.DataFrame(dict_values)
 
+    return df
+
+#
+# Load TCX file
+#
+def load_in_pandas_from_tcx(f_pathname, cadence=False, power=False, debug=False):
+    # Parse the XML file
+    NAMESPACE = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    XPATH_PREFIX = ".//" + "{" + NAMESPACE + "}"
+
+    namespaces = {
+        "ns3": "http://www.garmin.com/xmlschemas/ActivityExtension/v2"  # The namespace for ns3
+    }
+
+    tree = ET.parse(f_pathname)
+    root = tree.getroot()
+
+    cols_list = [
+        "id",
+        "timestamp",
+        "position_lat",
+        "position_long",
+        "altitude",
+        "distance",
+        "speed",
+        "heart_rate",
+    ]
+
+    # add cadence and power if available in the measurements
+    if cadence:
+        cols_list.append("cadence")
+    if power:
+        cols_list.append("power")
+        cols_list.append("n_power")
+
+    # initialize the dictionary
+    dict_values = {}
+
+    for key in cols_list:
+        dict_values[key] = []
+
+    i = 0
+    for trackpoint in root.findall(XPATH_PREFIX + "Trackpoint"):
+        # Extract data from each trackpoint
+
+        try:
+            time = trackpoint.find(XPATH_PREFIX + "Time")
+            
+            position = trackpoint.find(XPATH_PREFIX + "Position")
+            latitude = position.find(XPATH_PREFIX + "LatitudeDegrees")    
+            longitude = position.find(XPATH_PREFIX + "LongitudeDegrees")
+           
+            
+            altitude = trackpoint.find(XPATH_PREFIX + "AltitudeMeters")
+            distance = trackpoint.find(XPATH_PREFIX + "DistanceMeters")
+            heart_rate = trackpoint.find(XPATH_PREFIX + "Value")
+
+            # extensions
+            speed = trackpoint.find(".//ns3:Speed", namespaces)
+
+            dict_values['timestamp'].append(time.text)
+            dict_values['position_lat'].append(latitude.text)
+            dict_values['position_long'].append(longitude.text)
+            dict_values['altitude'].append(float(altitude.text))
+            dict_values['distance'].append(float(distance.text))
+            dict_values['heart_rate'].append(float(heart_rate.text))
+            dict_values['speed'].append(float(speed.text))
+
+            i += 1
+
+            if debug:
+                if i < 3:
+                    print(time.text)
+                    print(latitude.text)
+                    
+        except Exception as e:
+            # for any exception it skips the point
+            print(f"Exception: time: {time.text}, {str(e)}")
+
+    # now i + 1 is the # of records
+    dict_values["id"] = range(1, i + 1)
+
+    # conversion
+    dict_values["speed"] = convert_to_kmh(dict_values["speed"])
+    
+    if debug:
+        print("")
+        print("Num. of elements in lists...")
+        for key in dict_values.keys():
+            print(key, len(dict_values[key]))
+            
+    df = pd.DataFrame(dict_values)
+    
     return df
 
 
