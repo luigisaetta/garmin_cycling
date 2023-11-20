@@ -5,6 +5,7 @@
 
 # for fit format
 from fitparse import FitFile
+
 # for TCX format
 import xml.etree.ElementTree as ET
 
@@ -82,15 +83,15 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def compute_total_distance(df):
-    if df['distance'].max() is not np.nan:
-        tot_dist = df['distance'].max()
+    if df["distance"].max() is not np.nan:
+        tot_dist = df["distance"].max()
     else:
         # else compute from lat, long
         tot_dist = 0
 
-        lat_vet = df['position_lat'].values
-        long_vet = df['position_long'].values
-    
+        lat_vet = df["position_lat"].values
+        long_vet = df["position_long"].values
+
         for i in range(1, len(lat_vet)):
             p1_lat = lat_vet[i - 1]
             p1_long = long_vet[i - 1]
@@ -107,7 +108,7 @@ def compute_energy_consumed(df, col_name, eff_factor=0.25):
     # we're assuming time between points is 1 sec.
     tot_energy_joule = np.sum(df[col_name].values)
 
-    tot_energy_cal = tot_energy_joule * 0.000239006 * (1./eff_factor)
+    tot_energy_cal = tot_energy_joule * 0.000239006 * (1.0 / eff_factor)
 
     return round(tot_energy_cal, 1)
 
@@ -115,7 +116,7 @@ def compute_energy_consumed(df, col_name, eff_factor=0.25):
 #
 # read a fit file and store main infos in a Pandas DataFrame
 #
-def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False):
+def load_df_from_fit(f_path_name, cadence=False, power=False, debug=False):
     # power and cadence added to enable loading of data when power and cadence are NOT
     # available
 
@@ -209,10 +210,11 @@ def load_in_pandas_from_fit(f_path_name, cadence=False, power=False, debug=False
 
     return df
 
+
 #
 # Load TCX file
 #
-def load_in_pandas_from_tcx(f_pathname, cadence=False, power=False, debug=False):
+def load_df_from_tcx(f_pathname, cadence=False, power=False, debug=False):
     # Parse the XML file
     NAMESPACE = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
     XPATH_PREFIX = ".//" + "{" + NAMESPACE + "}"
@@ -254,12 +256,11 @@ def load_in_pandas_from_tcx(f_pathname, cadence=False, power=False, debug=False)
 
         try:
             time = trackpoint.find(XPATH_PREFIX + "Time")
-            
+
             position = trackpoint.find(XPATH_PREFIX + "Position")
-            latitude = position.find(XPATH_PREFIX + "LatitudeDegrees")    
+            latitude = position.find(XPATH_PREFIX + "LatitudeDegrees")
             longitude = position.find(XPATH_PREFIX + "LongitudeDegrees")
-           
-            
+
             altitude = trackpoint.find(XPATH_PREFIX + "AltitudeMeters")
             distance = trackpoint.find(XPATH_PREFIX + "DistanceMeters")
             heart_rate = trackpoint.find(XPATH_PREFIX + "Value")
@@ -267,13 +268,13 @@ def load_in_pandas_from_tcx(f_pathname, cadence=False, power=False, debug=False)
             # extensions
             speed = trackpoint.find(".//ns3:Speed", namespaces)
 
-            dict_values['timestamp'].append(time.text)
-            dict_values['position_lat'].append(latitude.text)
-            dict_values['position_long'].append(longitude.text)
-            dict_values['altitude'].append(float(altitude.text))
-            dict_values['distance'].append(float(distance.text))
-            dict_values['heart_rate'].append(float(heart_rate.text))
-            dict_values['speed'].append(float(speed.text))
+            dict_values["timestamp"].append(time.text)
+            dict_values["position_lat"].append(latitude.text)
+            dict_values["position_long"].append(longitude.text)
+            dict_values["altitude"].append(float(altitude.text))
+            dict_values["distance"].append(float(distance.text))
+            dict_values["heart_rate"].append(float(heart_rate.text))
+            dict_values["speed"].append(float(speed.text))
 
             i += 1
 
@@ -281,7 +282,7 @@ def load_in_pandas_from_tcx(f_pathname, cadence=False, power=False, debug=False)
                 if i < 3:
                     print(time.text)
                     print(latitude.text)
-                    
+
         except Exception as e:
             # for any exception it skips the point
             print(f"Exception: time: {time.text}, {str(e)}")
@@ -291,15 +292,15 @@ def load_in_pandas_from_tcx(f_pathname, cadence=False, power=False, debug=False)
 
     # conversion
     dict_values["speed"] = convert_to_kmh(dict_values["speed"])
-    
+
     if debug:
         print("")
         print("Num. of elements in lists...")
         for key in dict_values.keys():
             print(key, len(dict_values[key]))
-            
+
     df = pd.DataFrame(dict_values)
-    
+
     return df
 
 
