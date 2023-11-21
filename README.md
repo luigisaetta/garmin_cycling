@@ -23,3 +23,4 @@ pip install -f requirements.txt
 ```
 ## Examples
 ![InteractiveMap](./images/img1.jpg)
+![Plots](./images/img2.png)
