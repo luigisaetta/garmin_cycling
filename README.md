@@ -3,7 +3,9 @@ In this repository, you will discover a collection of tools designed for reading
 
 ## How to use
 In the [EDA](./eda_fit.ipynb) you'll find examples on how-to load a FIT file, analyze it and display points on a map.
- 
+## Examples
+![InteractiveMap](./images/img1.jpg)
+![Plots](./images/img2.png)    
 ## Conda Environment
 To create Python environment, with all required libraries:
 
@@ -21,6 +23,3 @@ cd garmin_cycling
 ```
 pip install -f requirements.txt
 ```
-## Examples
-![InteractiveMap](./images/img1.jpg)
-![Plots](./images/img2.png)
