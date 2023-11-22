@@ -113,6 +113,12 @@ def compute_energy_consumed(df, col_name, eff_factor=0.25):
     return round(tot_energy_cal, 1)
 
 
+def print_debug_dict(dict_values):
+    print("")
+    print("Num. of elements in lists...")
+    for key in dict_values.keys():
+        print(key, len(dict_values[key]))
+    
 #
 # read a fit file and store main infos in a Pandas DataFrame
 #
@@ -201,10 +207,7 @@ def load_df_from_fit(f_path_name, cadence=False, power=False, debug=False):
         dict_values["n_power"] = compute_normalized_power(dict_values["power"])
 
     if debug:
-        print("")
-        print("Num. of elements in lists...")
-        for key in dict_values.keys():
-            print(key, len(dict_values[key]))
+        print_debug_dict(dict_values)
 
     df = pd.DataFrame(dict_values)
 
@@ -294,10 +297,7 @@ def load_df_from_tcx(f_pathname, cadence=False, power=False, debug=False):
     dict_values["speed"] = convert_to_kmh(dict_values["speed"])
 
     if debug:
-        print("")
-        print("Num. of elements in lists...")
-        for key in dict_values.keys():
-            print(key, len(dict_values[key]))
+        print_debug_dict(dict_values)
 
     df = pd.DataFrame(dict_values)
 
